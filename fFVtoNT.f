@@ -20,7 +20,7 @@
       LRUNIT(2,1)=2
       LOUTF=2
 	  WRITE(6,*) '---------------------------'
-	  WRITE(6,*) 'ENTER THE FILENAME OF THE .fil TO BE PROCESSED'
+	  WRITE(6,*) 'ENTER THE FILENAME OF THE .fil TO BE PROCESSED (WITHOUT EXTENSION)'
       READ(5,"(A)") FNAME
 	  
 	  CALL DATE_AND_TIME(VALUES = STARTDATE)
@@ -39,8 +39,8 @@
 !
         CALL DBFILE(0,ARRAY,JRCD)
         IF(JRCD.NE.0) GO TO 110
-		K1 = K1+1
-		IF (VERBOSE .AND. (JRRAY(1,2).EQ.2000 .OR. JRRAY(1,2).EQ.2001)) THEN
+		K1 = K1+1 ! line counter
+		IF (VERBOSE .AND. (JRRAY(1,2).EQ.2000 .OR. JRRAY(1,2).EQ.2001)) THEN !debug outputs
 			WRITE(6,"('READING: K1 = ',I16)") K1
 			WRITE(6,*) JRRAY(1,1)
 			WRITE(6,*) JRRAY(1,2)
@@ -71,13 +71,12 @@
 		   JRRAY(1,3) = JND !NODE
            ARRAY(4) = FIELDVAR !MOVE FV TO ATTR 2: TEMPERATURE. More type conversion trickery
 	    ELSE IF(KEY.EQ.2000) THEN
+            !Store increment data for output
 			STEPTIME = ARRAY(4)
 			TOTTIME  = ARRAY(3)
 			JSTEP = JRRAY(1,8)
 			JINCR = JRRAY(1,9)
         END IF
-        
-!     WRITE RECORD TO NEW FILE
 		IF (VERBOSE .AND. (JRRAY(1,2).EQ.2000 .OR. JRRAY(1,2).EQ.2001)) THEN
 			WRITE(6,"('WRITING: K1 = ',I16,' | STEP: ',I2, ' | INCR: ',I6)") K1,JSTEP,JINCR
 			WRITE(6,*) JRRAY(1,1)
@@ -95,6 +94,8 @@
 			WRITE(6,*) JRRAY(1,5)
 			WRITE(6,*) JRRAY(1,6)
 		END IF
+        
+        !     WRITE RECORD TO NEW FILE
         CALL DBFILW(1,ARRAY,JRCD)
 		IF(JRCD.EQ.1) THEN
 		   WRITE(6,*) "FAILED TO WRITE. TERMINATING..."

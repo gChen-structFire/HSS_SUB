@@ -14,8 +14,6 @@
       RETURN
       END
 	  
-	  
-	  
 !------------------------------------------------------------------------------
       
 	  SUBROUTINE vuhard(
@@ -44,34 +42,54 @@
 	  REAL*8, DIMENSION(6) :: LUTKP, LUTKP_TEMP
 	  REAL*8, DIMENSION(2) :: YIELD_OUTPUT
       REAL*8, DIMENSION(2) :: LUTEP_U, LUTEP_U_TEMP, EP_Y_INTERP_TEMP, EP_Y_INTERP_STRAIN, F_Y_INTERP_TEMP
-      
 	  REAL*8 :: EP_Y, EP_T
       REAL*8 :: F_T_LIM
-	  
+      REAL*8 :: kelvinOffset
       CHARACTER*80 cmname
       LOGICAL :: LINEAR_TO_FRACTURE
 
       !Set this to .TRUE. to allow the stress-curve to reduce to zero after strain = 0.1. Set to .FALSE. to set a constant stress beyond strain = 0.1
       LINEAR_TO_FRACTURE = .TRUE.
-
-!     Lookup table values
-	  lutkb =          (/    1.0,  0.968,  0.952,  0.935,  0.903,  0.775,   0.55,   0.22,   0.16,    0.1,   0.067,   0.033,     0.0,     0.0,     0.0 /) !EC3-1-8
-	  lutKB_TEMP =     (/ 293.15, 373.15, 423.15, 473.15, 573.15, 673.15, 773.15, 873.15, 923.15, 973.15, 1073.15, 1173.15, 1273.15, 1373.15, 1473.15 /) !EC3-1-8 [K]
-	  LUTE  =          (/    1.0,    1.0,  0.950,  0.900,  0.800,  0.700,  0.600,  0.310,  0.220,  0.130,   0.090,  0.0675,  0.0450,  0.0225,     0.0 /) !EC3-1-8
-	  LUTE_TEMP =      (/ 293.15, 373.15, 423.15, 473.15, 573.15, 673.15, 773.15, 873.15, 923.15, 973.15, 1073.15, 1173.15, 1273.15, 1373.15, 1473.15 /) !EC3-1-8 [K]
-      LUTKP =          (/    0.9,    0.8,   0.75,   0.75,     0.6,     0.6 /) ! Behaviour of Grade 8.8 bolts under natural fire conditions—Tests and model, F. Hanus, G. Zilli, J.-M. Franssen (2011)
-      LUTKP_TEMP =     (/ 293.15, 473.15, 673.15, 873.15, 1073.15, 1173.15 /) ! Behaviour of Grade 8.8 bolts under natural fire conditions—Tests and model, F. Hanus, G. Zilli, J.-M. Franssen (2011) [K]
-      LUTEP_U    =     (/   0.15,    0.25 /)
-      LUTEP_U_TEMP=    (/ 873.15, 1073.15 /) ![K]
-	  
-!     Strain limits, Behaviour of Grade 8.8 bolts under natural fire conditions—Tests and model, F. Hanus, G. Zilli, J.-M. Franssen (2011) [-]
+      
+      !Set this to .TRUE. if your temperature data is in Kelvin. Set to .FALSE. if it is in degress Celsius.
+      KELVIN = .TRUE.
+      kelvinOffset = 273.15
+      
+      !Strain limits, Behaviour of Grade 8.8 bolts under natural fire conditions—Tests and model, F. Hanus, G. Zilli, J.-M. Franssen (2011) [-]
 	  EP_Y  = 0.02
 	  EP_T  = 0.1
-!     Maximum stress at strain = EP_T [Pa]
+      !Maximum stress at strain = EP_T [Pa]
       F_T_LIM = 500000000.
-	  EP_Y_INTERP_TEMP   = (/ 873.15, 1073.15 /)
-      EP_Y_INTERP_STRAIN = (/ EP_Y, EP_T /)
+
+!     Lookup table values
+      !Bolt reduction factor
+	  lutkb =          (/    1.0,  0.968,  0.952,  0.935,  0.903,  0.775,   0.55,   0.22,   0.16,    0.1,   0.067,   0.033,     0.0,     0.0,     0.0 /) !EC3-1-8
+	  lutKB_TEMP =     (/ 293.15, 373.15, 423.15, 473.15, 573.15, 673.15, 773.15, 873.15, 923.15, 973.15, 1073.15, 1173.15, 1273.15, 1373.15, 1473.15 /) !EC3-1-8 [K]
+      !elastic modulus
+	  LUTE  =          (/    1.0,    1.0,  0.950,  0.900,  0.800,  0.700,  0.600,  0.310,  0.220,  0.130,   0.090,  0.0675,  0.0450,  0.0225,     0.0 /) !EC3-1-8
+	  LUTE_TEMP =      (/ 293.15, 373.15, 423.15, 473.15, 573.15, 673.15, 773.15, 873.15, 923.15, 973.15, 1073.15, 1173.15, 1273.15, 1373.15, 1473.15 /) !EC3-1-8 [K]
+      !proportional limit
+      LUTKP =          (/    0.9,    0.8,   0.75,   0.75,     0.6,     0.6 /) ! Behaviour of Grade 8.8 bolts under natural fire conditions—Tests and model, F. Hanus, G. Zilli, J.-M. Franssen (2011)
+      LUTKP_TEMP =     (/ 293.15, 473.15, 673.15, 873.15, 1073.15, 1173.15 /) ! Behaviour of Grade 8.8 bolts under natural fire conditions—Tests and model, F. Hanus, G. Zilli, J.-M. Franssen (2011) [K]
+      !fracture train
+      LUTEP_U    =     (/   0.15,    0.25 /)
+      LUTEP_U_TEMP=    (/ 873.15, 1073.15 /) ![K]
+      !ultimate strain yield-point interpolation
+	  EP_Y_INTERP_STRAIN = (/ EP_Y, EP_T /)
+      EP_Y_INTERP_TEMP   = (/ 873.15, 1073.15 /)
 	  F_Y_INTERP_TEMP = EP_Y_INTERP_TEMP
+      
+      
+      
+!     Adjust to Celsius Kelvin
+      IF (.NOT.KELVIN) THEN
+        lutKB_TEMP = lutKB_TEMP - kelvinOffset
+        LUTE_TEMP = LUTE_TEMP - kelvinOffset
+        LUTKP_TEMP = LUTKP_TEMP - kelvinOffset
+        LUTEP_U_TEMP = LUTEP_U_TEMP - kelvinOffset
+        EP_Y_INTERP_TEMP = EP_Y_INTERP_TEMP - kelvinOffset
+        F_Y_INTERP_TEMP = F_Y_INTERP_TEMP - kelvinOffset
+      END IF
 
 !     Store outputs for ABAQUS
       DO 100 km = 1,nblock
@@ -129,11 +147,19 @@
 		IMPLICIT NONE
 		REAL*8 :: rknr
 		REAL*8, INTENT (IN)  :: Ts, Tu
-		REAL*8 			   :: Tuclamp
+		REAL*8 			   :: Tuclamp, Tumax, Tumin
+        
+        Tumax = 1073.15
+        Tumin = 773.15
+        
+        IF (.NOT.KELVIN) THEN
+          Tumax = Tumax - kelvinOffset
+          Tumin = Tumin - kelvinOffset
+        END IF
 		rknr = 1.0
-		IF (Tu <= 773.15) RETURN ! knr = 1 when Maximum temperature>=500 C
-		Tuclamp = MIN(1073.15, Tu) !degradation above 800 °C is minimal
-		rknr = 1.0 - 0.00133*(Tuclamp - MAX(Ts, 773.15))
+		IF (Tu <= Tumax) RETURN ! knr = 1 when Maximum temperature>=500 C
+		Tuclamp = MIN(Tumax, Tu) !data only for up to 800 °C
+		rknr = 1.0 - 0.00133*(Tuclamp - MAX(Ts, Tumin))
 		RETURN
 
 	  END FUNCTION
@@ -147,8 +173,8 @@
 		REAL*8, INTENT(IN) :: eqps, temp, temp_ult
 		REAL*8, DIMENSION(2) :: YIELD_OUTPUT, F_Y_INTERP_STRESS
 		
-		yield = 0
-		dyield = 0
+		yield = 0 !value of stress-strain curve
+		dyield = 0 !gradient of stress-strain curve
 
 		F_Y = props(1)*lookup(temp,lutKB_TEMP,lutkb,SIZE(lutKB_TEMP))*knr(temp,temp_ult) !eng stress
         F_P = lookup(temp_ult,LUTKP_TEMP,LUTKP,SIZE(LUTKP_TEMP))*F_Y !engineering stress
@@ -157,6 +183,7 @@
 		ep = (exp(log(EP_P+1)+eqps)-1) !total strain, eng
 		
 		IF ((ep) >= (EP_T)) THEN
+          !post-limiting strain region
 		  IF (LINEAR_TO_FRACTURE) THEN
 			EP_U = lookup(MAX(temp_ult,temp), LUTEP_U_TEMP, LUTEP_U, SIZE(LUTEP_U))
             dyield = (0-MIN(F_T_LIM,F_Y))/(EP_U-EP_T)
@@ -165,13 +192,16 @@
 		    yield = MIN(F_T_LIM,F_Y)
 		  END IF
         ELSE
+          !Set up interpolation of the ultimate stress point
 		  EP_Y_TEMP = lookup(temp_ult, EP_Y_INTERP_TEMP, EP_Y_INTERP_STRAIN, SIZE(EP_Y_INTERP_TEMP))
-		  IF (F_Y > F_T_LIM) THEN
+		  IF (F_Y > F_T_LIM) THEN ! and then interpolate it
             F_Y_INTERP_STRESS = (/ F_Y, F_T_LIM /)
-            F_Y_TEMP = lookup(temp_ult, F_Y_INTERP_TEMP, F_Y_INTERP_STRESS, SIZE(EP_Y_INTERP_TEMP));
+            F_Y_TEMP = lookup(temp_ult, F_Y_INTERP_TEMP, F_Y_INTERP_STRESS, SIZE(F_Y_INTERP_TEMP));
           ELSE
             F_Y_TEMP = F_Y;
           END IF
+          
+          !post-ultimate region
 		  IF ((ep) >= EP_Y_TEMP) THEN
 		    IF (F_Y_TEMP > F_T_LIM) THEN
 			  yield = LINTERP((ep), EP_Y_TEMP, EP_T, F_Y_TEMP, F_T_LIM)
@@ -180,6 +210,8 @@
 			  yield = F_Y_TEMP
 			END IF
           END IF
+          
+          !non-propotional region
 		  IF ((ep) < EP_Y_TEMP) THEN
             ep = MAX(ep, EP_P)
 			c  = (F_Y_TEMP-F_P)**(2)/((EP_Y_TEMP-EP_P)*E_a - 2*(F_Y_TEMP-F_P))
@@ -191,7 +223,7 @@
 		  END IF
         END IF
 		
- 		yield = yield*(1+ep)
+ 		yield = yield*(1+ep)!convert back to true stress
 	    YIELD_OUTPUT = (/ yield, dyield /) 
 		
 	  END FUNCTION
