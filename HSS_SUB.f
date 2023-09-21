@@ -157,7 +157,7 @@
           Tumin = Tumin - kelvinOffset
         END IF
 		rknr = 1.0
-		IF (Tu <= Tumax) RETURN ! knr = 1 when Maximum temperature>=500 C
+		IF (Tu <= Tumin) RETURN ! knr = 1 when Maximum temperature>=500 C
 		Tuclamp = MIN(Tumax, Tu) !data only for up to 800 °C
 		rknr = 1.0 - 0.00133*(Tuclamp - MAX(Ts, Tumin))
 		RETURN
@@ -165,11 +165,11 @@
 	  END FUNCTION
 	  
 	  FUNCTION YIELD_MODEL(eqps,temp,temp_ult) RESULT(YIELD_OUTPUT)
-!		Takes the current plastic strain 'ep', the current temperature and the
+!		Takes the current plastic strain 'eqps', the current temperature and the
 !       maximum temperature reached to determine the yield strength of the
 !       material at this time. Note that the input strain and output stress is
-!       in terms of true stress/strain
-		REAL*8 :: EP_P, EP_U, E_a, F_P, F_Y, yield, a2, b2, c, ba, dyield, dyieldT, ep, EP_Y_TEMP, F_Y_TEMP
+!       in terms of true stress/strain, but the yield surface is determined in engineering stress/strain
+		REAL*8 :: EP_P, EP_U, E_a, F_P, F_Y, yield, a2, b2, c, ba, dyield, dyieldT, ep, EP_Y_TEMP
 		REAL*8, INTENT(IN) :: eqps, temp, temp_ult
 		REAL*8, DIMENSION(2) :: YIELD_OUTPUT, F_Y_INTERP_STRESS
 		
@@ -177,6 +177,12 @@
 		dyield = 0 !gradient of stress-strain curve
 
 		F_Y = props(1)*lookup(temp,lutKB_TEMP,lutkb,SIZE(lutKB_TEMP))*knr(temp,temp_ult) !eng stress
+		!Set up interpolation of the ultimate stress point
+		EP_Y_TEMP = lookup(temp_ult, EP_Y_INTERP_TEMP, EP_Y_INTERP_STRAIN, SIZE(EP_Y_INTERP_TEMP))
+		IF (F_Y > F_T_LIM) THEN ! and then interpolate it
+	      F_Y_INTERP_STRESS = (/ F_Y, F_T_LIM /)
+		  F_Y = lookup(temp_ult, F_Y_INTERP_TEMP, F_Y_INTERP_STRESS, SIZE(F_Y_INTERP_TEMP));
+	    END IF
         F_P = lookup(temp_ult,LUTKP_TEMP,LUTKP,SIZE(LUTKP_TEMP))*F_Y !engineering stress
         E_a = props(2)*lookup(temp, LUTE_TEMP,LUTE,SIZE(lutKB_TEMP))
 		EP_P = F_P/E_a !proportional limit strain, eng
@@ -192,29 +198,20 @@
 		    yield = MIN(F_T_LIM,F_Y)
 		  END IF
         ELSE
-          !Set up interpolation of the ultimate stress point
-		  EP_Y_TEMP = lookup(temp_ult, EP_Y_INTERP_TEMP, EP_Y_INTERP_STRAIN, SIZE(EP_Y_INTERP_TEMP))
-		  IF (F_Y > F_T_LIM) THEN ! and then interpolate it
-            F_Y_INTERP_STRESS = (/ F_Y, F_T_LIM /)
-            F_Y_TEMP = lookup(temp_ult, F_Y_INTERP_TEMP, F_Y_INTERP_STRESS, SIZE(F_Y_INTERP_TEMP));
-          ELSE
-            F_Y_TEMP = F_Y;
-          END IF
-          
           !post-ultimate region
 		  IF ((ep) >= EP_Y_TEMP) THEN
-		    IF (F_Y_TEMP > F_T_LIM) THEN
-			  yield = LINTERP((ep), EP_Y_TEMP, EP_T, F_Y_TEMP, F_T_LIM)
-              dyield = (F_Y_TEMP - F_T_LIM)/(EP_T-EP_Y_TEMP)
+		    IF (F_Y > F_T_LIM) THEN
+			  yield = LINTERP((ep), EP_Y_TEMP, EP_T, F_Y, F_T_LIM)
+              dyield = (F_Y - F_T_LIM)/(EP_T-EP_Y_TEMP)
 		    ELSE
-			  yield = F_Y_TEMP
+			  yield = F_Y
 			END IF
           END IF
           
           !non-propotional region
 		  IF ((ep) < EP_Y_TEMP) THEN
             ep = MAX(ep, EP_P)
-			c  = (F_Y_TEMP-F_P)**(2)/((EP_Y_TEMP-EP_P)*E_a - 2*(F_Y_TEMP-F_P))
+			c  = (F_Y-F_P)**(2)/((EP_Y_TEMP-EP_P)*E_a - 2*(F_Y-F_P))
 			b2 = c*(EP_Y_TEMP-EP_P)*E_a+c**2
 			a2 = (EP_Y_TEMP-EP_P)*(EP_Y_TEMP-EP_P+c/E_a)
 			ba = (b2**(1./2.)/a2**(1./2.))
