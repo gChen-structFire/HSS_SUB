@@ -45,11 +45,14 @@
 	  REAL*8 :: EP_Y, EP_T
       REAL*8 :: F_T_LIM
       REAL*8 :: kelvinOffset
+      LOGICAL :: KELVIN
       CHARACTER*80 cmname
-      LOGICAL :: LINEAR_TO_FRACTURE
+      INTEGER :: POST_YIELD_MODEL
 
-      !Set this to .TRUE. to allow the stress-curve to reduce to zero after strain = 0.1. Set to .FALSE. to set a constant stress beyond strain = 0.1
-      LINEAR_TO_FRACTURE = .TRUE.
+      !Set to 0 to allow the stress-curve to reduce to zero after strain = 0.1.
+	  !Set to 1 to set a constant stress beyond strain = 0.1 such that stress = MIN(500 MPa, f_y)
+	  !Set to 2 to set a constant stress beyond yield such that stress = f_y
+      POST_YIELD_MODEL = 0
       
       !Set this to .TRUE. if your temperature data is in Kelvin. Set to .FALSE. if it is in degress Celsius.
       KELVIN = .TRUE.
@@ -188,24 +191,27 @@
 		EP_P = F_P/E_a !proportional limit strain, eng
 		ep = (exp(log(EP_P+1)+eqps)-1) !total strain, eng
 		
+
 		IF ((ep) >= (EP_T)) THEN
           !post-limiting strain region
-		  IF (LINEAR_TO_FRACTURE) THEN
+		  IF (POST_YIELD_MODEL .EQ. 0) THEN
 			EP_U = lookup(MAX(temp_ult,temp), LUTEP_U_TEMP, LUTEP_U, SIZE(LUTEP_U))
             dyield = (0-MIN(F_T_LIM,F_Y))/(EP_U-EP_T)
             yield = MAX(LINTERP(ep, EP_T,EP_U,MIN(F_T_LIM,F_Y),1._8),1._8)
           ELSE
-		    yield = MIN(F_T_LIM,F_Y)
+			IF (POST_YIELD_MODEL .EQ. 2) THEN
+			  yield = F_Y
+		    ELSE
+			  yield = MIN(F_T_LIM,F_Y)
+			END IF
 		  END IF
         ELSE
           !post-ultimate region
-		  IF ((ep) >= EP_Y_TEMP) THEN
-		    IF (F_Y > F_T_LIM) THEN
-			  yield = LINTERP((ep), EP_Y_TEMP, EP_T, F_Y, F_T_LIM)
-              dyield = (F_Y - F_T_LIM)/(EP_T-EP_Y_TEMP)
-		    ELSE
-			  yield = F_Y
-			END IF
+		  IF ((ep).GE.EP_Y_TEMP .AND. POST_YIELD_MODEL.NE.2 .AND. F_Y > F_T_LIM) THEN
+			yield = LINTERP((ep), EP_Y_TEMP, EP_T, F_Y, F_T_LIM)
+            dyield = (F_Y - F_T_LIM)/(EP_T-EP_Y_TEMP)
+          ELSE
+            yield = F_Y
           END IF
           
           !non-propotional region
