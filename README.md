@@ -10,7 +10,10 @@ This software, comprising of two FORTRAN90 code components, models the temperatu
    You may need to calibrate the code to your own material properties.
 
    Under HSS_SUB.for: SUBROUTINE vuhard:
-   - LINEAR_TO_FRACTURE  : Set this to true to model plastic stress decreasing to zero at strains above ε_t. Set this to false to maintain a perfectly plastic response of f_t at strains above ε_t.
+   - POST_YIELD_MODEL    : There are three yield models that HSS_SUB can use:
+                          0: Full stress-strain curve until fracture
+                          1: Full stress-strain curve until epsilon_t (default 0.1), after which the plastic stress is held constant at sigma_t (default 500 MPa)
+                          2: No reduction in plastic stress. The plastic stress will increase as normal until it reaches the ultimate stress, after which the ultimate stress is maintained. 
    - KELVIN              : Set this to true if the model temperatures are in Kelvin, or false if the model temperatures are in Celcius.
    - Lookup tables       : These can be modified to suit the steel being modelled. Subscript _TEMP denotes the relevantlookup  temperature for each value
      - lutkb             : bolt reduction factor k_b. By default from Eurocode 3 Part 1.2
